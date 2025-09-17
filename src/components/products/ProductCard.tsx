@@ -7,6 +7,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from "@/hooks/useAuthState";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeWhatsAppNumber } from "@/lib/utils";
 
 interface Product {
   id: string;
@@ -72,7 +73,7 @@ export const ProductCard = ({ product, showVendor = true, className = "" }: Prod
   };
 
   const handleWhatsAppOrder = async () => {
-    const productUrl = `${window.location.origin}/product/${product.slug}`;
+    const productUrl = `${window.location.origin}/#/product/${product.slug}`;
     const description = product.description ? `\nDescription: ${product.description}` : '';
     const category = product.categories?.name ? `\nCategory: ${product.categories.name}` : '';
     const brand = product.brands?.name ? `\nBrand: ${product.brands.name}` : '';
@@ -99,7 +100,9 @@ Is this product available for purchase?`;
       console.error('Error tracking order click:', error);
     }
     
-    const whatsappUrl = `https://wa.me/${product.vendor?.whatsapp_number}?text=${encodeURIComponent(message)}`;
+    const normalized = normalizeWhatsAppNumber(product.vendor?.whatsapp_number);
+    if (!normalized) return;
+    const whatsappUrl = `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
 

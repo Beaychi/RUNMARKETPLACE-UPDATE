@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { ProductCard } from "@/components/product/ProductCard";
+import { ProductCard, type Product as CardProduct } from "@/components/product/ProductCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from "@/hooks/useAuthState";
 import { ArrowLeft, Heart, MessageCircle, Share2, Phone, MapPin } from "lucide-react";
+import { normalizeWhatsAppNumber } from "@/lib/utils";
 
 interface Product {
   id: string;
@@ -42,7 +43,7 @@ export default function ProductDetailPage() {
   const { toast } = useToast();
   const { user } = useAuthState();
   const [product, setProduct] = useState<Product | null>(null);
-  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [relatedProducts, setRelatedProducts] = useState<CardProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [isWishlistLoading, setIsWishlistLoading] = useState(false);
@@ -51,12 +52,15 @@ export default function ProductDetailPage() {
     if (slug) {
       fetchProduct();
     }
+    // fetchProduct depends only on slug via closure; safe to skip dep warning
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
   useEffect(() => {
     if (product && user) {
       checkWishlistStatus();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product, user]);
 
   const checkWishlistStatus = async () => {
@@ -158,12 +162,14 @@ export default function ProductDetailPage() {
     const message = `Hi! I'm interested in ordering *${product.name}*
 
 Price: ₦${product.price_naira.toLocaleString()}
-Product Link: ${window.location.href}
+Product Link: ${window.location.origin}/#/product/${product.slug}
 ${product.description ? `\nDescription: ${product.description}` : ''}
 
 Please let me know about availability and delivery options. Thank you!`;
 
-    const whatsappUrl = `https://wa.me/${product.vendor.whatsapp_number}?text=${encodeURIComponent(message)}`;
+    const normalized = normalizeWhatsAppNumber(product.vendor.whatsapp_number);
+    if (!normalized) return;
+    const whatsappUrl = `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
 
@@ -413,11 +419,11 @@ Please let me know about availability and delivery options. Thank you!`;
             <h2 className="text-2xl font-bold mb-6">Related Products</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
               {relatedProducts.map((relatedProduct) => (
-        <ProductCard 
-          key={relatedProduct.id} 
-          product={relatedProduct as any}
-          showVendor={true}
-        />
+                <ProductCard 
+                  key={relatedProduct.id} 
+                  product={relatedProduct}
+                  showVendor={true}
+                />
               ))}
             </div>
           </div>

@@ -6,8 +6,9 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeWhatsAppNumber } from "@/lib/utils";
 
-interface Product {
+export interface Product {
   id: string;
   name: string;
   slug: string;
@@ -28,7 +29,7 @@ interface Product {
   };
 }
 
-interface ProductCardProps {
+export interface ProductCardProps {
   product: Product;
   showVendor?: boolean;
 }
@@ -68,10 +69,11 @@ export function ProductCard({ product, showVendor = true }: ProductCardProps) {
   const handleWhatsAppOrder = async () => {
     if (!product.vendor?.whatsapp_number) return;
 
-    const productUrl = `${window.location.origin}/product/${product.slug}`;
+    const productUrl = `${window.location.origin}/#/product/${product.slug}`;
     const message = `Hello, I'm interested in ${product.name} from Run Marketplace (${productUrl}). Is it available?`;
-    const whatsappUrl = `https://wa.me/${product.vendor.whatsapp_number}?text=${encodeURIComponent(message)}`;
-    
+    const normalized = normalizeWhatsAppNumber(product.vendor.whatsapp_number);
+    if (!normalized) return;
+    const whatsappUrl = `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
 
