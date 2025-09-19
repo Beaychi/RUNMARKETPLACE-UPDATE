@@ -149,36 +149,20 @@ export default function AdminDashboard() {
 
   const approveVendor = async (userId: string) => {
     try {
-      // Ensure profile is marked as vendor and approved
-      const { data: profile, error: profileUpdateError } = await supabase
-        .from('profiles')
-        .update({ role: 'vendor', vendor_approved: true })
-        .eq('user_id', userId)
-        .select('*')
-        .maybeSingle();
+      // Update both profiles and vendors table
+      const [profileUpdate, vendorUpdate] = await Promise.all([
+        supabase
+          .from('profiles')
+          .update({ vendor_approved: true })
+          .eq('user_id', userId),
+        supabase
+          .from('vendors')
+          .update({ status: 'approved' })
+          .eq('user_id', userId)
+      ]);
 
-      if (profileUpdateError) throw profileUpdateError;
-
-      // Build minimal vendor record data from profile
-      const businessName = profile?.business_name || profile?.full_name || 'Business';
-      const vendorSlug = (businessName || 'business')
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9-]/g, '');
-
-      // Upsert vendor record and set status to approved
-      const { error: vendorUpsertError } = await supabase
-        .from('vendors')
-        .upsert({
-          user_id: userId,
-          business_name: businessName,
-          slug: vendorSlug,
-          whatsapp_number: profile?.phone || '',
-          encrypted_whatsapp: profile?.encrypted_phone || null,
-          status: 'approved'
-        }, { onConflict: 'user_id' });
-
-      if (vendorUpsertError) throw vendorUpsertError;
+      if (profileUpdate.error) throw profileUpdate.error;
+      if (vendorUpdate.error) throw vendorUpdate.error;
 
       toast({
         title: "Vendor Approved",
