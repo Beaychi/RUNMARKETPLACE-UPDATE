@@ -96,7 +96,10 @@ export default function AuthPage() {
 
       // Create profile for customer users (vendors will use vendor portal)
       if (data.user && !isVendor) {
-        const { error: profileError } = await supabase
+        // Wait a moment for the user session to be established
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .insert({
             user_id: data.user.id,
@@ -105,11 +108,17 @@ export default function AuthPage() {
             role: 'customer',
             matric_number: matricNumber,
             email_verified: false
-          });
+          })
+          .select();
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
+          setError(`Failed to create profile: ${profileError.message}`);
+          setLoading(false);
+          return;
         }
+
+        console.log('Customer profile created successfully:', profileData);
       }
 
       toast({

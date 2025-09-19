@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -51,6 +51,7 @@ interface Product {
   manual_purchases: number;
   created_at: string;
   stock_quantity: number;
+  is_archived?: boolean;
 }
 
 interface Analytics {
@@ -68,11 +69,14 @@ export default function VendorDashboard() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  useEffect(() => {
-    checkAuthAndLoadData();
-  }, []);
+  // Narrow badge variants to the union types expected by the UI component
+  const getBadgeVariant = (status: string): 'default' | 'secondary' | 'destructive' => {
+    if (status === 'active') return 'default';
+    if (status === 'out_of_stock') return 'destructive';
+    return 'secondary';
+  };
 
-  const checkAuthAndLoadData = async () => {
+  const checkAuthAndLoadData = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -119,7 +123,7 @@ export default function VendorDashboard() {
       setProfile(profileData);
 
       // Get or create vendor data
-      let { data: vendorData, error: vendorError } = await supabase
+      let { data: vendorData } = await supabase
         .from('vendors')
         .select('id')
         .eq('user_id', session.user.id)
@@ -127,15 +131,18 @@ export default function VendorDashboard() {
 
       // If no vendor record exists, create one
       if (!vendorData) {
-        const slug = profile?.business_name?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `vendor-${session.user.id.slice(0, 8)}`;
+        const slug = (profileData.business_name || profileData.full_name || `vendor-${session.user.id.slice(0, 8)}`)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '');
         
         const { data: newVendor, error: createError } = await supabase
           .from('vendors')
           .insert({
             user_id: session.user.id,
-            business_name: profile?.business_name || 'My Business',
-            description: profile?.brand_description || 'A great business',
-            whatsapp_number: profile?.phone || '000000000',
+            business_name: profileData.business_name || profileData.full_name || 'My Business',
+            description: profileData.brand_description || 'A great business',
+            whatsapp_number: profileData.phone || '',
             slug: slug,
             status: 'approved'
           })
@@ -193,7 +200,11 @@ export default function VendorDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate, toast]);
+
+  useEffect(() => {
+    checkAuthAndLoadData();
+  }, [checkAuthAndLoadData]);
 
   const handleAddProduct = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -202,7 +213,7 @@ export default function VendorDashboard() {
     
     try {
       // Get or create the vendor record for the current user
-      let { data: vendorData, error: vendorError } = await supabase
+      const { data: vendorData, error: vendorError } = await supabase
         .from('vendors')
         .select('id')
         .eq('user_id', profile?.user_id)
@@ -268,10 +279,10 @@ export default function VendorDashboard() {
       // Reset form
       e.currentTarget.reset();
       checkAuthAndLoadData(); // Reload data
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive"
       });
     }
@@ -314,10 +325,10 @@ export default function VendorDashboard() {
       });
 
       checkAuthAndLoadData(); // Reload data
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive"
       });
     }
@@ -338,10 +349,10 @@ export default function VendorDashboard() {
       });
 
       checkAuthAndLoadData(); // Reload data
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive"
       });
     }
@@ -349,7 +360,7 @@ export default function VendorDashboard() {
 
   const archiveProduct = async (productId: string) => {
     try {
-      const product = products.find(p => p.id === productId) as any;
+      const product = products.find(p => p.id === productId);
       const { error } = await supabase
         .from('products')
         .update({ is_archived: !product?.is_archived })
@@ -363,10 +374,10 @@ export default function VendorDashboard() {
       });
 
       checkAuthAndLoadData(); // Reload data
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive"
       });
     }
@@ -390,10 +401,10 @@ export default function VendorDashboard() {
       });
 
       checkAuthAndLoadData(); // Reload data
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive"
       });
     }
@@ -417,10 +428,10 @@ export default function VendorDashboard() {
       });
 
       checkAuthAndLoadData(); // Reload data
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive"
       });
     }
@@ -467,10 +478,10 @@ export default function VendorDashboard() {
       });
 
       checkAuthAndLoadData(); // Reload data
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive"
       });
     }
@@ -600,8 +611,10 @@ export default function VendorDashboard() {
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Badge variant={product.status === 'active' ? 'default' : 'secondary'}>
-                            {product.status}
+                          <Badge variant={getBadgeVariant(product.status)}>
+                            {product.status === 'out_of_stock' ? 'Out of Stock' : 
+                             product.status === 'active' ? 'Active' : 
+                             product.status}
                           </Badge>
                           <span className="text-sm text-muted-foreground">
                             {product.manual_purchases} sales
@@ -642,8 +655,10 @@ export default function VendorDashboard() {
                               ₦{product.price_naira.toLocaleString()}
                             </p>
                             <div className="flex items-center space-x-2">
-                              <Badge variant={product.status === 'active' ? 'default' : 'secondary'}>
-                                {product.status}
+                              <Badge variant={getBadgeVariant(product.status)}>
+                                {product.status === 'out_of_stock' ? 'Out of Stock' : 
+                                 product.status === 'active' ? 'Active' : 
+                                 product.status}
                               </Badge>
                               <span className="text-xs text-muted-foreground">
                                 {product.manual_purchases} confirmed sales
@@ -654,11 +669,11 @@ export default function VendorDashboard() {
                         <div className="flex items-center space-x-2">
                           <Button 
                             size="sm" 
-                            variant={product.status === 'inactive' ? "default" : "secondary"}
-                            onClick={() => updateStockStatus(product.id, product.status !== 'inactive')}
+                            variant={product.status === 'out_of_stock' ? "default" : "secondary"}
+                            onClick={() => updateStockStatus(product.id, product.status !== 'out_of_stock')}
                             disabled={!profile.vendor_approved}
                           >
-                            {product.status === 'inactive' ? 'Mark In Stock' : 'Mark Sold Out'}
+                            {product.status === 'out_of_stock' ? 'Mark In Stock' : 'Mark Sold Out'}
                           </Button>
                           <Button 
                             size="sm" 
@@ -722,7 +737,7 @@ export default function VendorDashboard() {
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                        {categories.map((category: any) => (
+                        {categories.map((category: { id: string; name: string }) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.name}
                           </SelectItem>

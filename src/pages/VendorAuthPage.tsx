@@ -89,8 +89,11 @@ export default function VendorAuthPage() {
 
       // Create profile and vendor entries if user was created
       if (data.user) {
-        // Create profile
-        const { error: profileError } = await supabase
+        // Wait a moment for the user session to be established
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Create profile with better error handling
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .insert({
             user_id: data.user.id,
@@ -102,15 +105,21 @@ export default function VendorAuthPage() {
             phone: phone,
             encrypted_phone: encryptedPhone.data,
             vendor_approved: false
-          });
+          })
+          .select();
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
+          setError(`Failed to create profile: ${profileError.message}`);
+          setLoading(false);
+          return;
         }
+
+        console.log('Profile created successfully:', profileData);
 
         // Create vendor entry
         const vendorSlug = businessName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-        const { error: vendorError } = await supabase
+        const { data: vendorData, error: vendorError } = await supabase
           .from('vendors')
           .insert({
             user_id: data.user.id,
@@ -119,11 +128,17 @@ export default function VendorAuthPage() {
             whatsapp_number: phone,
             encrypted_whatsapp: encryptedPhone.data,
             status: 'pending'
-          });
+          })
+          .select();
 
         if (vendorError) {
           console.error('Vendor creation error:', vendorError);
+          setError(`Failed to create vendor record: ${vendorError.message}`);
+          setLoading(false);
+          return;
         }
+
+        console.log('Vendor record created successfully:', vendorData);
       }
 
       toast({
